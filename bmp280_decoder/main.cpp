@@ -1,11 +1,16 @@
+//! \file   main.cpp
+//! \author Pavel Perina
+//! \date   2024-03-18 
+//! \brief  Prototype of BMP280 and BME280 raw sensor data decoding routines
+
 #include <cstdint>
 #include <format>
 #include <iostream>
 #include <string>
 
 
-// This is from BMP280 and BME280 datasheets,
-// chapter Trimming parameter readout.
+// This is from BMP280 and BME280 datasheets, chapter Trimming parameter readout.
+// Data are from real sensor
 // NOTE: BME has humidity calibration separated
 static const uint8_t calibration[26] = 
 {
@@ -26,7 +31,7 @@ static const uint8_t calibration[26] =
     0x00            // BMP: reserved, BME: dig_H1 as uchar
 };
 
-
+// Real measurement data
 static const uint8_t measurement[8] =
 {
     0x6C, 0x07, 0x00, 0x7E, 0x4C, 0x00, 0x00, 0x00
@@ -37,8 +42,10 @@ struct Calibration
 {
     uint16_t T1;
     int16_t T2, T3;
+
     uint16_t P1;
     int16_t P2, P3, P4, P5, P6, P7, P8, P9;
+
     uint8_t H1;
     int16_t H2;
     uint8_t H3;
@@ -48,18 +55,17 @@ struct Calibration
 
 struct Measurement 
 {
-    float pressure = 0.;
-    float temp = 0.;
-    float humidity = 0.;
+    float pressure = 0.0f;
+    float temp     = 0.0f;
+    float humidity = 0.0f;
 };
 
 
 int32_t decode20bit(const uint8_t *data) 
 {
-
-    int32_t i = static_cast<uint32_t>(data[0]) << 12 
-              | static_cast<uint32_t>(data[1]) << 4
-              | static_cast<uint32_t>(data[2]) >> 4;
+    const int32_t i = static_cast<uint32_t>(data[0]) << 12 
+                    | static_cast<uint32_t>(data[1]) << 4
+                    | static_cast<uint32_t>(data[2]) >> 4;
     return i;
 
 }
@@ -67,9 +73,8 @@ int32_t decode20bit(const uint8_t *data)
 
 uint16_t decodeU16LE(const uint8_t *data) 
 {
-    const uint32_t result = 
-          uint32_t(data[0]) 
-        | uint32_t(data[1]) << 8;
+    const uint32_t result = uint32_t(data[0]) 
+                          | uint32_t(data[1]) << 8;
     return result;
 }
 
@@ -101,7 +106,7 @@ Calibration decodeCalibration(const uint8_t *calibration)
 }
         
 
-
+// TODO: pass calibration struct, raw data differ for BMP280 and BME280
 Measurement decode(
     const uint8_t *calibration, 
     const uint8_t *measurement)
@@ -113,7 +118,6 @@ Measurement decode(
     int32_t t_fine;
     // Temperature
     {
-        // typical value is 520000
         int32_t temp_raw = decode20bit(measurement+3);
         int32_t var1, var2, T;
 
@@ -127,7 +131,6 @@ Measurement decode(
 
     // Pressure
     {
-        // typical might be 440000
         int32_t adc_P = decode20bit(measurement+0);
         int64_t var1, var2, p;
 
@@ -148,8 +151,14 @@ Measurement decode(
         }
     }
 
+    // Humidity
+    {
+        // TODO: humidity code (in case i buy BME280)
+    }
+
     return result;
 }
+
 
 int main(int argc, char **argv) 
 {
